@@ -1,7 +1,7 @@
 Dokumentation
 
 Input:
---train-data: csv file, the first columns must be "Age"
+--train-data: csv file, the first column must be "Age"
 
 Output: 
 param_importances.png
@@ -10,7 +10,7 @@ best_params.csv
 final_best_params.json
 
 Optimisation:
-The optimisation parameters are optimised within a fixed range. The parameter max depth is set to 50 and fixed. Early stopping is set to 5. The variable parameters are:
+The optimisation parameters are optimised within a fixed range. The parameter max depth is set to 50. Early stopping is set to 5. The variable parameters are:
 
 "learning_rate": [1e-7, 1],
 "num_leaves": [5, 100],

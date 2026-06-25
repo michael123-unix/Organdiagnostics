@@ -1,7 +1,6 @@
 Analysis
 
-NOTE: the fragmentation of the data into three groups has to be adopted to novel training data
-
+NOTE: currently the explain pipline is specifically written for data containing only three age cathegories. Adoption to new data neccessary.
 input:
 --train_data: train data csv
 --model: model
