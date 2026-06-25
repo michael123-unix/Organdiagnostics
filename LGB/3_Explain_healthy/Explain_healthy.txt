@@ -1,0 +1,25 @@
+Analysis
+
+NOTE: the fragmentation of the data into three groups has to be adopted to novel training data
+
+input:
+--train_data: train data csv
+--model: model
+
+output:
+waterfall_3m.png
+waterfall_18m.png
+waterfall_24m.png
+beeswarm_3m.png
+beeswarm_18m.png
+beeswarm_24m.png
+top_50_genes_global.csv
+top_50_genes_3m.csv
+top_50_genes_18m.csv
+top_50_genes_24m.csv
+
+top_50_interactions_3m.csv
+top_50_interactions_18m.csv
+top_50_interactions_24m.csv
+
+The script is used on the train data and calculates shap value as feature importances. Optionally the feature importances can be estimated (see shap documentation) if the --interaction flag is provided ( if it does not work: try --interactions true). The exact values are not calculated, this is computationally excessively expensive.

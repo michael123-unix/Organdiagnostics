@@ -1,0 +1,18 @@
+Model Training
+
+input:
+--train_data csv file, "Age" as the first column
+--best_params json
+--eval_data csv for assessing model performance on an unseen dataset, same size and features as train_data.csv
+
+output:
+model.txt
+model_2.txt
+model_2.json
+plot_model_metrics_m1
+plot_model_metrics_m2
+Corrected_data.csv
+Predicted_vs_True_Age.png
+
+The script trains a model based on the input, predicts the age on the train set and excludes samples with an error exceeding a z-score of 2, then a second model is trained based on this reduced dataset and exported.
+The second model is then evaluated on an independent dataset provided by the user.

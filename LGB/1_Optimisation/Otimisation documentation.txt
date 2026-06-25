@@ -1,0 +1,25 @@
+Dokumentation
+
+Input:
+--train-data: csv file, the first columns must be "Age"
+
+Output: 
+param_importances.png
+opt_history.png
+best_params.csv
+final_best_params.json
+
+Optimisation:
+The optimisation parameters are optimised within a fixed range. The parameter max depth is set to 50 and fixed. Early stopping is set to 5. The variable parameters are:
+
+"learning_rate": [1e-7, 1],
+"num_leaves": [5, 100],
+"min_child_samples": [5, 500],
+"feature_fraction": [0.4, 1.0],
+"bagging_fraction": [0.4, 1.0],
+"bagging_freq":[1, 10],
+"lambda_l1": [1e-6, 10.0],
+"lambda_l2": [1e-6, 10.0], 
+
+Command line arguments:
+--train data: path to the train data csv

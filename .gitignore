@@ -1,0 +1,14 @@
+#git ignore
+
+.nextflow
+.vscode
+
+Data/
+Data_preparation/
+LGB/**/.nextflow
+Log/
+work/
+results/
+
+
+
