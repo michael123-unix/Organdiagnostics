@@ -2,6 +2,7 @@
 
 .nextflow
 .vscode
+*.log*
 
 Data/
 Data_preparation/
@@ -9,6 +10,7 @@ LGB/**/.nextflow
 Log/
 work/
 results/
+Scripts_for_debugging/
 
 
 

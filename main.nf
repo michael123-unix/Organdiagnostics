@@ -10,7 +10,10 @@ include { explain_healthy } from "./LGB/3_Explain_healthy/Explain_healthy.nf"
 
 params.train_data = "$baseDir/Data/Model_train_data/Train_data.csv"
 params.test_data = "$baseDir/Data/Model_train_data/Test_data.csv"
-params.interactions = false
+params.ranges = "$baseDir/Data/Ranges.csv"
+params.num_attributions = 50
+params.num_genes_int = null
+params.num_int = null
     
     workflow {
       	main:
@@ -18,11 +21,15 @@ params.interactions = false
 
         optimise(in_channel)
 
-         test_channel = channel.fromPath(params.test_data)
+            test_channel = channel.fromPath(params.test_data)
 
         train(in_channel, optimise.out.best_params, test_channel)
 
-        explain_healthy(in_channel, train.out.model)
+            ranges_channel = channel.fromPath(params.ranges) 
+            params_channel = channel.value([params.num_attributions, params.num_genes_int, 
+            params.num_int])
+            
+        explain_healthy(in_channel, train.out.model, ranges_channel, params_channel)
 
     	publish:
         optimise_out = optimise.out[0].mix(optimise.out[1],

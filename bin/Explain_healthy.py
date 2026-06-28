@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats as st
-from matplotlib_venn import venn3
+from matplotlib_venn import venn3, venn2
 import lightgbm as lgb
 import shap
 import os
@@ -36,12 +36,17 @@ if __name__== "__main__":
     parser = argparse.ArgumentParser(description="Explain the LGB model on the healthy individual to extract important features.")
     parser.add_argument("--train_data", help="Path to the training data CSV file", required=True)   
     parser.add_argument("--model", help="Path to the trained LightGBM model file", required=True)
-    parser.add_argument("--interactions", action="store_true", help="Whether to calculate gene-gene interactions for the top 50 genes for each age group. This can be computationally intensive, so use with caution.")
+    parser.add_argument("--ranges", help="Path to a file specifying age ranges for analysis.", required=True)
+    parser.add_argument("--num_attributions", help="Number of top feature attributions to extract as csv file", required=True, type= int)
+    parser.add_argument("--num_genes_int", help = "number of genes for which to extract interactions. Number has to be smaller or equal to the number of extracted top attributions", type=int)
+    parser.add_argument("--num_int", help= "number or interaction parterns to extract for a given gene", type=int)
     args = parser.parse_args()
 
 #%%load data
-# 1. Prepare your data
+print("loading and preparing data and model")
+
 train_data = pd.read_csv(args.train_data)
+ranges = pd.read_csv(args.ranges)
 
 train_data.index = train_data["index"]
 train_data= train_data.drop(columns="index")
@@ -52,105 +57,70 @@ reduce_mem_usage(train_data)
 #prepare the train data for generating attributions and interactions
 Y_train = train_data.pop("Age")
 X_data_train = train_data
-X_data_train.columns
 Full_train_data = X_data_train.assign(Age = Y_train).copy()
 
 #load model
 gbm= lgb.Booster(model_file=args.model)
 
-#%%shap values and overview importance plots
+#%%shap values 
+print("claculating shap values")
+
 explainer = shap.TreeExplainer(gbm)
-
 shap_values = explainer(X_data_train)
-X_data_train.columns
-shap_values.feature_names
 
-#for explanations on each age group, subset the data and calculate averages of SHAP values for all features
+print("shap values have been calculated")
 
-    #generate masks for subsetting the Explainer object
-mask_3= (Full_train_data["Age"] == 3).values
-mask_18= (Full_train_data["Age"] == 18).values
-mask_24= (Full_train_data["Age"] == 24).values
-type(mask_3)
+#%%subset data based on age windows
+print("prepare data for age window specific analysis")
 
-if len(Full_train_data["Age"]) != mask_3.sum() + mask_18.sum() + mask_24.sum():
-    raise ValueError("The sum of the masks does not equal the length of the training data. Please check the age values in the training data.")  
+age_window_frames = {}
+for i,r in ranges.iterrows():
+    name = r["Name"]
+    Lower = r["Lower"]
+    Upper = r["Upper"]
+    mask = Full_train_data["Age"].between(Lower, Upper, inclusive="both").values
 
-    #generate age slices
-shap_3m = shap_values[mask_3]
-shap_18m = shap_values[mask_18]
-shap_24m = shap_values[mask_24]
-type(shap_3m)
+    age_window_frames[name] = shap_values[mask]
 
-    #generate mean shap values. Note: to reconstruct a shap explanation object for plotting,
-    #the mean for all subarrays have to be calculated: base, data and shap value
-    #value means
-mean_shap_3m_value = shap_3m.values.mean(axis=0)
-mean_shap_18m_value = shap_18m.values.mean(axis=0)
-mean_shap_24m_value = shap_24m.values.mean(axis=0)
+length = 0
+for i in age_window_frames.values():
+    length += i.shape[0]
 
-    #base (background) means
-mean_shap_3m_base = shap_3m.base_values.mean(axis=0)
-mean_shap_18m_base = shap_18m.base_values.mean(axis=0)
-mean_shap_24m_base = shap_24m.base_values.mean(axis=0)
+if length == Full_train_data.shape[0]:
+    print("data was split successfully")
 
-    #data means
-mean_shap_3m_data = shap_3m.data.mean(axis=0)
-mean_shap_18m_data = shap_18m.data.mean(axis=0)
-mean_shap_24m_data = shap_24m.data.mean(axis=0)
+#%% calculate means over all patients
 
-    #generating new explanation objects
-mean_shap_3m = shap.Explanation(values=mean_shap_3m_value, base_values=mean_shap_3m_base, data= mean_shap_3m_data, 
-                                feature_names=shap_3m.feature_names)
-mean_shap_18m = shap.Explanation(values=mean_shap_18m_value, base_values=mean_shap_18m_base, data= mean_shap_18m_data, 
-                                feature_names=shap_18m.feature_names)
-mean_shap_24m = shap.Explanation(values=mean_shap_24m_value, base_values=mean_shap_24m_base, data= mean_shap_24m_data, 
-                                feature_names=shap_24m.feature_names)
+mean_shaps_by_age_window = {}
+for n,i in zip(age_window_frames.keys(), age_window_frames.values()):
+    value_mean = i.values.mean(axis=0)
+    base_mean = i.base_values.mean(axis=0)
+    data_mean = i.data.mean(axis=0)
+    shap_mean = shap.Explanation(values=value_mean, base_values=base_mean, 
+                                 data = data_mean, feature_names = i.feature_names)
+    mean_shaps_by_age_window[n] = shap_mean
 
+#%% Waterfall plots
+print("generate waterfall plot for age groups")
 
-#waterfall plot of average values 
-waterfall_3m, ax= plt.subplots()
-ax=shap.plots.waterfall(mean_shap_3m, show=False)
-#waterfall_3m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/Waterfall_plot_run1_3m.png")
-waterfall_3m.savefig("waterfall_3m.png")
-plt.close()
+for n,i in zip(mean_shaps_by_age_window.keys(), mean_shaps_by_age_window.values()):
+               waterfall_plot, ax=plt.subplots()
+               ax = shap.plots.waterfall(i, show=False)
+               plt.savefig(f"waterfall_plot_{n}.png")
+               plt.close()
 
-waterfall_18m, ax= plt.subplots()
-ax=shap.plots.waterfall(mean_shap_18m, show=False)
-#waterfall_18m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/Waterfall_plots_run1_18m.png")
-waterfall_18m.savefig("waterfall_18m.png")
-plt.close()
+#%%beeswarm plots
+print("generate beewsarm plots for age groups")
 
-waterfall_24m, ax= plt.subplots()
-ax=shap.plots.waterfall(mean_shap_24m, show=False)
-#waterfall_24m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/Waterfall_plots_run1_24m.png")
-waterfall_24m.savefig("waterfall_24m.png")
-plt.close()
+for n,i in zip(age_window_frames.keys(), age_window_frames.values()):
+               beeswarm_plot, ax=plt.subplots()
+               ax = shap.plots.beeswarm(i, show=False)
+               plt.savefig(f"beeswarm_plot_{n}.png")
+               plt.close()
 
+#%%Top k attributions global:
+print("extracting top k attributions")
 
-#beeswarm mplots for shap value to value interactions:
-beeswarm_3m, ax = plt.subplots()  
-ax=shap.plots.beeswarm(shap_3m, show=False)
-#beeswarm_3m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/beeswarm_run1_3m")
-beeswarm_3m.savefig("beeswarm_3m.png")
-plt.close()
-
-beeswarm_18m, ax = plt.subplots()  
-ax=shap.plots.beeswarm(shap_18m, show=False)
-#beeswarm_18m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/beeswarm_run1_18m")
-beeswarm_18m.savefig("beeswarm_18m.png")
-plt.close()
-
-beeswarm_24m, ax = plt.subplots()  
-ax=shap.plots.beeswarm(shap_24m, show=False)
-#beeswarm_24m.savefig("/Users/michael/Python/Organage/Facs_only/LGB/Results/Analysis/Plots/beeswarm_run1_24m")
-beeswarm_24m.savefig("beeswarm_24m.png")
-plt.close()
-
-
-#%%Top 50 features across all sets
-#extract 50 most important features globally and for age groups
-#global
 idx_shap_top_50 = np.argsort(np.abs(shap_values.values.mean(axis=0)))[::-1][:50] #::-1 reverses the array
 
 top_50_genes = X_data_train.columns[idx_shap_top_50]
@@ -160,94 +130,103 @@ top_genes = pd.DataFrame({"Top_50_Genes": top_50_genes,
                           "Values": top_50_values})
 top_genes.to_csv("top_50_genes_global.csv")
 
-#top genes for age groups
-idx_shap_top_50_3m = np.argsort(np.abs(mean_shap_3m.values))[::-1][:50] #::-1 reverses the array
-idx_shap_top_50_18m = np.argsort(np.abs(mean_shap_18m.values))[::-1][:50] #::-1 reverses the array
-idx_shap_top_50_24m = np.argsort(np.abs(mean_shap_24m.values))[::-1][:50] #::-1 reverses the array
+#%%top k attributions for age groups
+num_attributions = args.num_attributions
+top_k_attributions = {}
+for n,i in zip(mean_shaps_by_age_window.keys(), mean_shaps_by_age_window.values()):
+     idx = np.argsort(np.abs(i.values))[::-1][:num_attributions]
+     top_genes = X_data_train.columns[idx]
+     top_values = i.values[idx]
+     top_k_attributions[n] = pd.DataFrame({"gene": top_genes,
+                                           "value": top_values})
+     top_k_attributions[n].to_csv(f"Top_{num_attributions}_attributions_{n}.csv")
+     
+#%%venn diagram, extract feature sets
+print("generate venn diagrams of top features for age groups")
 
-#3m
-top_50_genes_3m = X_data_train.columns[idx_shap_top_50_3m]
-top_50_values_3m = shap_values.values.mean(axis=0)[idx_shap_top_50_3m]
+no_venns = sum("Venn" in col for col in ranges.columns)
+sets_venn = {}
+for i in range(1,(no_venns+1)):
+    set_names = list(ranges[ranges[f"Venn_{i}"]=="y"]["Name"])
+    venn_subsets = {}
+    for j in set_names:
+        gene_set = set(top_k_attributions[j]["gene"])
+        venn_subsets[j] = gene_set
+    sets_venn[f"venn_{i}"] = venn_subsets
 
-top_genes_3m = pd.DataFrame({"Top_50_Genes": top_50_genes_3m,
-                             "Values": top_50_values_3m})
-top_genes_3m.to_csv("top_50_genes_3m.csv")
+#%%venn diagram, plot
 
-#18m
-top_50_genes_18m = X_data_train.columns[idx_shap_top_50_18m]
-top_50_values_18m = shap_values.values.mean(axis=0)[idx_shap_top_50_18m]
-
-top_genes_18m = pd.DataFrame({"Top_50_Genes": top_50_genes_18m,
-                          "Values": top_50_values_18m})
-top_genes_18m.to_csv("top_50_genes_18m.csv")
-
-#24m
-top_50_genes_24m = X_data_train.columns[idx_shap_top_50_24m]
-top_50_values_24m = shap_values.values.mean(axis=0)[idx_shap_top_50_24m]
-
-top_genes_24m = pd.DataFrame({"Top_50_Genes": top_50_genes_24m,
-                          "Values": top_50_values_24m})
-top_genes_24m.to_csv("top_50_genes_24m.csv")
-
-#venn diagrams of most important genes 
-plt.figure()
-venn3((set(top_50_genes_3m), set(top_50_genes_18m), set(top_50_genes_24m)), ("3m", "18m", "24m"))
-plt.savefig("venn_top_genes.png")
-plt.close()
+for i in range(1,no_venns+1):
+    subsets = tuple(sets_venn[f"venn_{i}"].values())
+    labels = tuple(sets_venn[f"venn_{i}"].keys())
+    plt.figure()
+    if len(subsets) == 3:
+         venn3(subsets, labels)
+    elif len(subsets) == 2:
+         venn2(subsets, labels)
+    else:
+         print("wrong number of sets provided for matplotlib-venn. use either 2 or 3 sets for each plot")
+    plt.savefig(f"venn_{i}.png")
+    plt.close()              
 
 #%%gene gene interactions
 
-if args.interactions:
+if args.num_genes_int:
+    print("Start analyzing feature interactions")
 
-    #generate X_df subsets based on age 
-    Full_3m = Full_train_data[Full_train_data["Age"]==3]
-    Full_18m = Full_train_data[Full_train_data["Age"]==18]
-    Full_24m = Full_train_data[Full_train_data["Age"]==24]
 
-    X_3m = Full_3m.drop(columns=["Age"])
-    X_18m = Full_18m.drop(columns=["Age"])
-    X_24m = Full_24m.drop(columns=["Age"])
+#%%dependence plot for top 10 features globally
+    print("generating shap dependence- plots")
 
-    #interaction plots
-    #global dependence plots of 20 most important genes
-
-    for i in range(20):
+    for i in top_genes["Top_50_Genes"][0:9]:
         shap.plots.scatter(shap_values[:, i], color=shap_values, show=False)
-        #plt.savefig(f"/Users/michael/Python/Organage/Results/interaction{i}.png")
         plt.savefig(f"global_dependence_plot_gene_{i}.png")
         plt.close()
 
-    #for age groups: calculate top three interaction partners for top 50 genes for each age group
-    #Note: approximation with shap.utils.approximate_interactions, gives index of most likely interaction partner
+#%%dependence plots for age groups
 
-    Interactions_3m = pd.DataFrame()
-    for i,j in zip(top_50_genes_3m, range(len(top_50_genes_3m))):
-        sorted_idx = shap.utils.approximate_interactions(i, shap_3m.values, X_3m)
-        top_idx = sorted_idx[0:3]
-        interactors = X_3m.columns[top_idx]
-        Interactions_3m.insert(loc=j, column=i, value=interactors)
-        #Interactions_3m.to_csv("/Users/michael/Python/Organage/Results/Top_genes_and_interactors_3m.csv")
-        Interactions_3m.to_csv("top_50_interactions_3m.csv")
+    for n in age_window_frames.keys():
+         for i in top_k_attributions[n]["gene"][0:9]:
+            shap.plots.scatter(age_window_frames[n][:,i], color = age_window_frames[n], show=False)
+            plt.savefig(f"dependence_plot_{i}_{n}")
+            plt.close()
 
-    Interactions_18m = pd.DataFrame()
-    for i,j in zip(top_50_genes_18m, range(len(top_50_genes_18m))):
-        sorted_idx = shap.utils.approximate_interactions(i, shap_18m.values, X_18m)
-        top_idx = sorted_idx[0:3]
-        interactors = X_18m.columns[top_idx]
-        Interactions_18m.insert(loc=j, column=i, value=interactors)
-        #Interactions_18m.to_csv("/Users/michael/Python/Organage/Results/Top_genes_and_interactors_18m.csv")
-        Interactions_18m.to_csv("top_50_interactions_18m.csv")
+    #%% generate X_df subsets based on age 
 
-    Interactions_24m = pd.DataFrame()
-    for i,j in zip(top_50_genes_24m, range(len(top_50_genes_24m))):
-        sorted_idx = shap.utils.approximate_interactions(i, shap_24m.values, X_24m)
-        top_idx = sorted_idx[0:3]
-        interactors = X_24m.columns[top_idx]
-        Interactions_24m.insert(loc=j, column=i, value=interactors)
-        #Interactions_24m.to_csv("/Users/michael/Python/Organage/Results/Top_genes_and_interactors_24m.csv")
-        Interactions_24m.to_csv("top_50_interactions_24m.csv")
+    X_data_for_interactions = {}
+    for i,r in ranges.iterrows():
+        name = r["Name"]
+        Lower = r["Lower"]
+        Upper = r["Upper"]
+        mask = Full_train_data["Age"].between(Lower, Upper, inclusive="both").values
 
-    print("Gene-gene interactions calculated and saved to file.")
+        X_data_for_interactions[name] = Full_train_data[mask].drop(columns = "Age")
+
+#%% extract top k interactions
+    print("extracting top k interactions")
+    int_num = args.num_int
+    num_for_int = args.num_genes_int 
+    interactions_by_age = {}
+    for n in age_window_frames.keys():
+         
+        age_window = []
+        for g in top_k_attributions[n]["gene"][0:num_for_int]:
+            sorted_idx = shap.utils.approximate_interactions(g, age_window_frames[n].values, 
+                                                             X_data_for_interactions[n])
+            top_5_idx = sorted_idx[0:int_num]
+            interactors = X_data_for_interactions[n].columns[top_5_idx]
+            row_data = {"gene":g}
+
+            for i, j in enumerate(interactors):
+                 row_data[f"interactor_{i}"] = j
+            
+            age_window.append(row_data)
+        
+        df = pd.DataFrame(age_window)
+        interactions_by_age[n] = df
+        df.to_csv(f"top_{int_num}_interactions_{n}.csv")
+
+    print("pipeline finished successfully")
 
 else:
     print("pipeline finished successfully")

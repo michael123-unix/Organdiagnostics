@@ -5,6 +5,13 @@ input:
 --train_data: train data csv
 --model: model
 
+--ranges: csv file with the columns "Name", "Lower", "Upper", "Venn_x" where "Name" defines the title of the window (e.g. youth, middle_age, 3months etc.) and lower and upper contain the range boundaries. 
+Venn_x: A number of venn diagrams can be generated comparing either two or three groups. x: the number of the venn diagram, the entries of the venn_x columns are denoting the groups present in the diagram with "y" or "n"
+
+--num_attributions: number of feature attributions (top k) to extract in a csv file
+--num_genes_int: optional, if provided gene-gene interactions will be estimated with the shap.utils.approximate_interactions function. Input: number of genes for which to extract interaction parters, has to be <= to num_attributions
+--num_int: optional, number of interaction partners to extract for each gene
+
 output:
 waterfall_3m.png
 waterfall_18m.png
@@ -21,4 +28,4 @@ top_50_interactions_3m.csv
 top_50_interactions_18m.csv
 top_50_interactions_24m.csv
 
-The script is used on the train data and calculates shap value as feature importances. Optionally the feature importances can be estimated (see shap documentation) if the --interaction flag is provided ( if it does not work: try --interactions true). The exact values are not calculated, this is computationally excessively expensive.
+The script is used on the train data and calculates shap value as feature importances. Optionally feature-feature- interactions can be estimated (see shap documentation) if the --num_genes_int flag is provided.
