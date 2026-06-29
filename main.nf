@@ -8,8 +8,8 @@ include { explain_healthy } from "./LGB/3_Explain_healthy/Explain_healthy.nf"
  *Pipeline Parameters
  */
 
-params.train_data = "$baseDir/Data/Model_train_data/Train_data.csv"
-params.test_data = "$baseDir/Data/Model_train_data/Test_data.csv"
+params.train_data = "$baseDir/Data/Model_train_data/Train_data_*.csv"
+params.test_data = "$baseDir/Data/Model_train_data/Test_data_*.csv"
 params.ranges = "$baseDir/Data/Ranges.csv"
 params.num_attributions = 50
 params.num_genes_int = null

@@ -48,7 +48,6 @@ df = pd.read_csv(args.train_data)
 #drop index column
 df.index = df["index"]
 df_1 = df.drop(columns="index")
-df_1.columns
 
 #check if first column is "Age"
 if df_1.columns[0] != "Age":
