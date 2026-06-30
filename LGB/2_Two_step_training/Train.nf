@@ -11,20 +11,18 @@
 conda "$projectDir/LGB/Envs/Organage.yaml"
 
 input:
-tuple path(train_data), path(test_data)
-path best_params
-
+tuple val(organ), path(train_data), path(test_data), path(best_params)
 
 output:
-path "model.txt", emit: model
-path "model.json"
-path "model_metrics_m1.png"
-path "model_metrics_m2.png"
-path "True_vs_predicted_age.png"
+tuple val(organ), path("model_${organ}.txt"), emit: model
+path "model_${organ}.json"
+path "model_metrics_m1_${organ}.png"
+path "model_metrics_m2_${organ}.png"
+path "True_vs_predicted_age_${organ}.png"
 
 script:
 """
-Training.py --train_data ${train_data} --best_params ${best_params} --test_data ${test_data}
+Training.py --train_data ${train_data} --best_params ${best_params} --test_data ${test_data} --organ ${organ}
 """
 
  }

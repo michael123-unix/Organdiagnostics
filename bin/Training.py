@@ -30,9 +30,7 @@ def reduce_mem_usage(df):
     return(df)
 
 print("Loading and preparing data...")
-# load or create your dataset
-
-#df = pd.read_csv("Data/Model_train_data/Train_data.csv")
+# load or create dataset
 
 #%% define arguments
 if __name__== "__main__":
@@ -40,6 +38,7 @@ if __name__== "__main__":
     parser.add_argument("--train_data", help="Path to the training data CSV file", required=True)
     parser.add_argument("--best_params", help="Path to the JSON file containing the best hyperparameters", required=True)   
     parser.add_argument("--test_data", help="Path to the evaluation data CSV file", required=True)
+    parser.add_argument("--organ", type=str, help="Organ name for naming the output")
 
     args = parser.parse_args()
 
@@ -143,7 +142,7 @@ ax[1,0].set_xlabel("Feature split value Lars2")
 ax[1,0].set_ylabel("Clunt")
 
 ax[1,1].set_title("Tree 1")
-fig.savefig("model_metrics_m1.png") 
+fig.savefig(f"model_metrics_m1_{args.organ}.png") 
 
 
 #%% predict on train set and correct data
@@ -155,7 +154,6 @@ Full_data["Error"] = Full_data["Age"] - Full_data["Age_predicted"]
 Full_data["z_score_error"] = (Full_data["Error"]- np.mean(Full_data["Error"]))/np.std(Full_data["Error"])
                               
 Corrected_data = Full_data[abs(Full_data["z_score_error"])<2]
-#Corrected_data.to_csv("Corrected_data.csv", index=False)
 
 #%%retrain on the corrected data
 
@@ -192,9 +190,9 @@ best_iter_m2 = gbm_2.best_iteration
 
 # save model to file
 print("Saving model...")
-gbm_2.save_model("model.txt")
+gbm_2.save_model(f"model_{args.organ}.txt")
 
-with open("model.json", "w") as f:
+with open(f"model_{args.organ}.json", "w") as f:
    json.dump(gbm_2.dump_model(), f)
 
 #%%plot parameter importances
@@ -219,13 +217,11 @@ ax[1,0].set_xlabel("Feature split value Lars2")
 ax[1,0].set_ylabel("Count")
 
 ax[1,1].set_title("Tree 1")
-fig.savefig("model_metrics_m2.png") 
+fig.savefig(f"model_metrics_m2_{args.organ}.png") 
 
 #%%evaluate the model on independent evaluation data
-
 print("Training complete. Start evaluation on provided evaluation data...")
 
-#eval_data= pd.read_csv("Data/Model_train_data/test_data.csv")
 eval_data = pd.read_csv(args.test_data)
 
 eval_data.index = eval_data["index"]
@@ -244,7 +240,6 @@ print(f"RMSE on evaluation data: {rmse_eval}")
 Full_eval_data = eval_data.assign(Age = y_eval, Age_predicted = preds_eval)
 
 #%% plot true vs predicted age 
-
 ages = [Full_eval_data[Full_eval_data["Age"]==i]["Age_predicted"] for i in (3,18,24)]
 
 #%%
@@ -253,7 +248,7 @@ plt.title("Predicted vs true ages")
 plt.xlabel("True age")
 plt.ylabel("predicted ages")
 plt.text(1,25, f"RMSE = {round(rmse_eval,2)}")
-plt.savefig("True_vs_predicted_age.png")
+plt.savefig(f"True_vs_predicted_age_{args.organ}.png")
 plt.close
 
 print("Pipeline finished successfully!")

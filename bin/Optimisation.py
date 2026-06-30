@@ -12,9 +12,6 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import json
-#from sklearn.datasets import make_regression
-#from sklearn.model_selection import train_test_split
-#from sklearn.metrics import mean_squared_error
 from optuna.visualization import plot_param_importances, plot_optimization_history
 from optuna.storages import JournalStorage
 from optuna.storages.journal import JournalFileBackend
@@ -35,6 +32,7 @@ def reduce_mem_usage(df):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Optuna hyperparameter optimization for LightGBM regression.")
     parser.add_argument("--train_data", type=str, required=True, help="Path to the training data CSV file.")
+    parser.add_argument("--organ", type=str, help="Organ name for naming the output")
 
     args = parser.parse_args()
 
@@ -146,23 +144,23 @@ print("Plotting summary plots...")
 # See which parameters had the most impact on RMSE
 param_importance_plot = vis.plot_param_importances(study)       #note that the matplotlib functionality (vis) was used since plotly is made for html unsing applications
 plt.title("Param Importance")
-plt.savefig("Param_importances.png")
+plt.savefig(f"param_importances_{args.organ}.png")
 plt.close()
     
 # See how the RMSE improved over the 50 trials
 history_plot = vis.plot_optimization_history(study)
 plt.title("Optimisation history")
-plt.savefig("opt_history.png")
+plt.savefig(f"opt_history_{args.organ}.png")
 plt.close()
 
 print("saving parameters...")
 
 best = study.best_params
 # Save the master tracking file
-pd.DataFrame(best, index=(1,1)).to_csv("best_params.csv", index=False)  
+pd.DataFrame(best, index=(1,1)).to_csv(f"best_params_{args.organ}.csv", index=False)  
 
 # Save the best parameter dictionary to a file
-with open("final_best_params.json", "w") as f:
+with open(f"final_best_params_{args.organ}.json", "w") as f:
     json.dump(best, f, indent=4)
   
 print("Parameters saved successfully!")

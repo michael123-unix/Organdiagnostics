@@ -9,15 +9,14 @@ process explain_healthy {
 conda "$projectDir/LGB/Envs/Organage.yaml"
 
 input:
-path train_data 
-path model
+tuple val(organ), path(train_data), path(model)
 path ranges
 tuple val(num_attributions), val(num_genes_int), val(num_int)
 
 
 output:
-path "*.png", emit: importance_plots  //generates one channel containing all the .png
-path "*.csv", emit: top_genes_and_interactions
+path "*_${organ}.png", emit: importance_plots  //generates one channel containing all the .png
+path "*_${organ}.csv", emit: top_genes_and_interactions
 
 
 script:
@@ -26,7 +25,7 @@ def int_arg = num_int ? "--num_int $num_int" : ""
 
 """
 Explain_healthy.py --train_data $train_data --model $model --ranges $ranges \
---num_attributions $num_attributions $genes_arg $int_arg
+--num_attributions $num_attributions $genes_arg $int_arg --organ ${organ}
 """
 
 }

@@ -9,17 +9,17 @@
     conda "$projectDir/LGB/Envs/Organage.yaml" 
 
      input:
-     path train_data
+     tuple val(organ), path(train_data)
 
      output:
-     path "param_importances.png"
-     path "opt_history.png"
-     path "best_params.csv"      
-     path "final_best_params.json", emit: best_params
+      path("param_importances_${organ}.png")
+      path("opt_history_${organ}.png")
+      path("best_params_${organ}.csv")   
+      tuple val(organ), path("final_best_params_${organ}.json"), emit: best_params
 
      script:
      """
-    Optimisation.py --train_data ${train_data}
+    Optimisation.py --train_data ${train_data} --organ ${organ}
      """
 
  }

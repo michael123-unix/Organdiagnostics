@@ -20,20 +20,22 @@ params.num_int = null
         .map{row -> [file(row.Train_data), file(row.Test_data), row.Organ]
         }
 
-        opt_in = in_channel.map{list -> list[0]}
-        train_in = in_channel.map{list -> tuple(list[0], list[1])}
-        explain_in = in_channel.map{list -> list[0]}
+        opt_in = in_channel.map{list -> tuple(list[2], list[0])}
+        train_data = in_channel.map{list -> tuple(list[2], list[0], list[1])}
+        explain_data = in_channel.map{list -> tuple(list[2], list[0])}
 
         optimise(opt_in)
 
+        train_in = train_data.join(optimise.out.best_params, remainder: true)
 
-        train(train_in, optimise.out.best_params)
+        train(train_in)
 
             ranges_channel = channel.fromPath(params.ranges) 
             params_channel = channel.value([params.num_attributions, params.num_genes_int, 
             params.num_int])
+            explain_in = explain_data.join(train.out.model, remainder: true)
             
-        explain_healthy(explain_in, train.out.model, ranges_channel, params_channel)
+        explain_healthy(explain_in, ranges_channel, params_channel)
 
     	publish:
         optimise_out = optimise.out[0].mix(optimise.out[1],
@@ -49,8 +51,8 @@ params.num_int = null
 
     }
     output {
-      optimise_out {path "LGB/1_Optimisation"}
-      train_out {path "LGB/2_Two_step_training"}
+      optimise_out {path "LGB/1_Optimisation/"}
+      train_out {path "LGB/2_Two_step_training/"}
       explain_healthy_out {path "LGB/3_Explain_healthy"}
 
     }

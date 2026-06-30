@@ -17,7 +17,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats as st
 from matplotlib_venn import venn3, venn2
-
 import lightgbm as lgb
 import shap
 import os
@@ -41,6 +40,8 @@ if __name__== "__main__":
     parser.add_argument("--num_attributions", help="Number of top feature attributions to extract as csv file", required=True, type= int)
     parser.add_argument("--num_genes_int", help = "number of genes for which to extract interactions. Number has to be smaller or equal to the number of extracted top attributions", type=int)
     parser.add_argument("--num_int", help= "number or interaction parterns to extract for a given gene", type=int)
+    parser.add_argument("--organ", type=str, help="Organ name for naming the output")
+
     args = parser.parse_args()
 
 #%%load data
@@ -80,7 +81,6 @@ for i,r in ranges.iterrows():
     Lower = r["Lower"]
     Upper = r["Upper"]
     mask = Full_train_data["Age"].between(Lower, Upper, inclusive="both").values
-
     age_window_frames[name] = shap_values[mask]
 
 length = 0
@@ -107,7 +107,7 @@ print("generate waterfall plot for age groups")
 for n,i in zip(mean_shaps_by_age_window.keys(), mean_shaps_by_age_window.values()):
                waterfall_plot, ax=plt.subplots()
                ax = shap.plots.waterfall(i, show=False)
-               plt.savefig(f"waterfall_plot_{n}.png")
+               plt.savefig(f"waterfall_plot_{n}_{args.organ}.png")
                plt.close()
 
 #%%beeswarm plots
@@ -116,7 +116,7 @@ print("generate beewsarm plots for age groups")
 for n,i in zip(age_window_frames.keys(), age_window_frames.values()):
                beeswarm_plot, ax=plt.subplots()
                ax = shap.plots.beeswarm(i, show=False)
-               plt.savefig(f"beeswarm_plot_{n}.png")
+               plt.savefig(f"beeswarm_plot_{n}_{args.organ}.png")
                plt.close()
 
 #%%Top k attributions global:
@@ -129,7 +129,7 @@ top_50_values = shap_values.values.mean(axis=0)[idx_shap_top_50]
 
 top_genes = pd.DataFrame({"Top_50_Genes": top_50_genes,                         
                           "Values": top_50_values})
-top_genes.to_csv("top_50_genes_global.csv")
+top_genes.to_csv(f"top_50_genes_global_{args.organ}.csv")
 
 #%%top k attributions for age groups
 num_attributions = args.num_attributions
@@ -140,7 +140,7 @@ for n,i in zip(mean_shaps_by_age_window.keys(), mean_shaps_by_age_window.values(
      top_values = i.values[idx]
      top_k_attributions[n] = pd.DataFrame({"gene": top_genes,
                                            "value": top_values})
-     top_k_attributions[n].to_csv(f"Top_{num_attributions}_attributions_{n}.csv")
+     top_k_attributions[n].to_csv(f"Top_{num_attributions}_attributions_{args.organ}_{n}.csv")
      
 #%%venn diagram, extract feature sets
 print("generate venn diagrams of top features for age groups")
@@ -167,7 +167,7 @@ for i in range(1,no_venns+1):
          venn2(subsets, labels)
     else:
          print("wrong number of sets provided for matplotlib-venn. use either 2 or 3 sets for each plot")
-    plt.savefig(f"venn_{i}.png")
+    plt.savefig(f"venn_{i}_{args.organ}.png")
     plt.close()              
 
 #%%gene gene interactions
@@ -181,7 +181,7 @@ if args.num_genes_int:
 
     for i in top_genes["Top_50_Genes"][0:9]:
         shap.plots.scatter(shap_values[:, i], color=shap_values, show=False)
-        plt.savefig(f"global_dependence_plot_gene_{i}.png")
+        plt.savefig(f"global_dependence_plot_gene_{i}_{args.organ}.png")
         plt.close()
 
 #%%dependence plots for age groups
@@ -225,7 +225,7 @@ if args.num_genes_int:
         
         df = pd.DataFrame(age_window)
         interactions_by_age[n] = df
-        df.to_csv(f"top_{int_num}_interactions_{n}.csv")
+        df.to_csv(f"top_{int_num}_interactions_{args.organ}_{n}.csv")
 
     print("pipeline finished successfully")
 
