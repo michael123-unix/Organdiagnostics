@@ -11,9 +11,9 @@
 conda "$projectDir/LGB/Envs/Organage.yaml"
 
 input:
-path train_data
+tuple path(train_data), path(test_data)
 path best_params
-path test_data
+
 
 output:
 path "model.txt", emit: model

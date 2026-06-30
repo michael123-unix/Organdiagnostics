@@ -8,8 +8,7 @@ include { explain_healthy } from "./LGB/3_Explain_healthy/Explain_healthy.nf"
  *Pipeline Parameters
  */
 
-params.train_data = "$baseDir/Data/Model_train_data/Train_data_*.csv"
-params.test_data = "$baseDir/Data/Model_train_data/Test_data_*.csv"
+params.samples = "$baseDir/Data/Sample_sheet.csv"
 params.ranges = "$baseDir/Data/Ranges.csv"
 params.num_attributions = 50
 params.num_genes_int = null
@@ -17,19 +16,24 @@ params.num_int = null
     
     workflow {
       	main:
-        in_channel = channel.fromPath(params.train_data)
+        in_channel = channel.fromPath(params.samples).splitCsv(header: true)
+        .map{row -> [file(row.Train_data), file(row.Test_data), row.Organ]
+        }
 
-        optimise(in_channel)
+        opt_in = in_channel.map{list -> list[0]}
+        train_in = in_channel.map{list -> tuple(list[0], list[1])}
+        explain_in = in_channel.map{list -> list[0]}
 
-            test_channel = channel.fromPath(params.test_data)
+        optimise(opt_in)
 
-        train(in_channel, optimise.out.best_params, test_channel)
+
+        train(train_in, optimise.out.best_params)
 
             ranges_channel = channel.fromPath(params.ranges) 
             params_channel = channel.value([params.num_attributions, params.num_genes_int, 
             params.num_int])
             
-        explain_healthy(in_channel, train.out.model, ranges_channel, params_channel)
+        explain_healthy(explain_in, train.out.model, ranges_channel, params_channel)
 
     	publish:
         optimise_out = optimise.out[0].mix(optimise.out[1],
