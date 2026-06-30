@@ -4,6 +4,7 @@ input:
 --train_data csv file, "Age" as the first column
 --best_params json
 --eval_data csv for assessing model performance on an unseen dataset, same size and features as train_data.csv
+--organ string, names the outputs according to the organ of origin of the train data
 
 output:
 model.txt

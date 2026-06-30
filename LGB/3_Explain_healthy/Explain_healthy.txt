@@ -1,9 +1,9 @@
 Analysis
 
-NOTE: currently the explain pipline is specifically written for data containing only three age cathegories. Adoption to new data neccessary.
 input:
---train_data: train data csv
---model: model
+--train_data train data csv
+--model model
+--organ string, names the outputs according to the organ of origin of the train data
 
 --ranges: csv file with the columns "Name", "Lower", "Upper", "Venn_x" where "Name" defines the title of the window (e.g. youth, middle_age, 3months etc.) and lower and upper contain the range boundaries. 
 Venn_x: A number of venn diagrams can be generated comparing either two or three groups. x: the number of the venn diagram, the entries of the venn_x columns are denoting the groups present in the diagram with "y" or "n"
@@ -13,19 +13,14 @@ Venn_x: A number of venn diagrams can be generated comparing either two or three
 --num_int: optional, number of interaction partners to extract for each gene
 
 output:
-waterfall_3m.png
-waterfall_18m.png
-waterfall_24m.png
-beeswarm_3m.png
-beeswarm_18m.png
-beeswarm_24m.png
-top_50_genes_global.csv
-top_50_genes_3m.csv
-top_50_genes_18m.csv
-top_50_genes_24m.csv
+waterfall.png           one for each age range
+beeswarm.png            one for each age range
+top_k_genes_global.csv  one file containtin the top k features considering all 
+top_50_genes.csv        one file for each age rane, each containting the top features considering this range
+venn.png                venn plots comparing age windows as specified in the ranges.csv
+dependence_plot_global.png  plots the top 10 features and its top interactor as estimated by the shap framework
+dependence_plot.png        one dependence plot for the top 10 genes of each age range
+top_i_interactions.csv  one file for each age range, contains the top i interactors of the top g features, where i and g are provided by the user
 
-top_50_interactions_3m.csv
-top_50_interactions_18m.csv
-top_50_interactions_24m.csv
 
-The script is used on the train data and calculates shap value as feature importances. Optionally feature-feature- interactions can be estimated (see shap documentation) if the --num_genes_int flag is provided.
+The script is used on the train data and calculates shap value as feature importances. Optionally feature-feature- interactions can be estimated (see shap documentation shap.utils.estimate_interactions) if the --num_genes_int flag is provided with an integer value.
